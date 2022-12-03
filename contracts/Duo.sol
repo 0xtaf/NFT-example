@@ -33,4 +33,52 @@ contract Duo is ERC721Enumerable, Ownable {
         _baseTokenURI = baseURI;
         whitelist = IUnus(whitelistContract);
     }
+
+    function startPresale() public onlyOwner {
+        presaleStarted = true;
+        presaleEnd = block.timestamp + 5 minutes;
+    }
+
+    function presaleMint() public payable notPaused {
+        require(
+            presaleStarted && block.timestamp < presaleEnd,
+            "presale is not active"
+        );
+        require(whitelist.allowedAddresses(msg.sender), "you are not allowed");
+        require(numTokenIds < maxTokenIds, "minted out!");
+        require(msg.value >= _price, "not enough funds");
+        numTokenIds++;
+
+        _safeMint(msg.sender, numTokenIds);
+    }
+
+    function mint() public payable {
+        require(
+            presaleStarted && block.timestamp >= presaleEnd,
+            "presale is continuing"
+        );
+        require(numTokenIds < maxTokenIds, "minted out!");
+        require(msg.value >= _price, "not enough funds");
+        numTokenIds++;
+        _safeMint(msg.sender, numTokenIds);
+    }
+
+    /**
+     * @dev _baseURI overides the Openzeppelin's ERC721 implementation which by default
+     * returned an empty string for the baseURI
+     */
+    function _baseURI() internal view virtual override returns (string memory) {
+        return _baseTokenURI;
+    }
+
+    function withdraw() public onlyOwner {
+        address _owner = owner();
+        uint256 amount = address(this).balance;
+        (bool sent, ) = _owner.call{value: amount}("");
+        require(sent, "Failed to send Ether");
+    }
+
+    receive() external payable {}
+
+    fallback() external payable {}
 }
